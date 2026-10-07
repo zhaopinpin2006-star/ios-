@@ -1,0 +1,39 @@
+name: Sign IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: '下载链接（Google Drive/Dropbox/阿里云直链）'
+        required: true
+        default: ''
+
+jobs:
+  sign:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ldid
+        run: |
+          brew install ldid
+          ldid --version
+
+      - name: Download main binary
+        run: |
+          curl -L -o Health_main_patched "${{ github.event.inputs.file_url }}"
+          echo "Downloaded: $(ls -la Health_main_patched | awk '{print $5}') bytes"
+
+      - name: Sign with ldid
+        run: |
+          cp Health_main_patched Health_signed
+          ldid -Sentitlements.plist Health_signed
+          ldid -h Health_signed
+          echo "Signing complete"
+
+      - name: Upload signed binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: Health_signed
+          path: Health_signed
