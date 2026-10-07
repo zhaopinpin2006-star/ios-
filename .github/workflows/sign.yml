@@ -1,0 +1,25 @@
+name: Sign on Mac
+on:
+  workflow_dispatch:
+    inputs:
+      download_url:
+        description: '主二进制下载直链'
+        required: true
+jobs:
+  sign:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ldid
+        run: brew install ldid
+      - name: Download
+        run: curl -L --retry 3 -o Health_main_patched "${{ github.event.inputs.download_url }}"
+      - name: Sign
+        run: |
+          cp Health_main_patched Health_signed
+          ldid -Sentitlements.plist Health_signed
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Health_signed
+          path: Health_signed
