@@ -46,8 +46,9 @@ function threeTexture(THREE,markup){return new Promise((res,rej)=>{const uri=URL
 async function makeTarget(){
  if(!file.files.length){say("正在准备你上传的泥咕咕海报识别图…");}
  say("正在加载图片识别编译器…（首次打开需要联网）");
- await script("https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js");
- if(!window.MINDAR?.IMAGE?.Compiler)throw new Error("图片编译器未能加载。请使用 Safari 或尝试关闭微信内置浏览器。");
+ const compilerModule=await import("https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js");
+ const CompilerClass=compilerModule.Compiler||window.MINDAR?.IMAGE?.Compiler;
+ if(typeof CompilerClass!=="function")throw new Error("图片编译器模块已加载，但未找到 Compiler 导出。");
  const img=file.files.length?await imageFromFile(file.files[0]):await (async()=>{const x=new Image();x.src="./mudgugu-target.jpg?v=2";await x.decode();return x;})();
  say("正在编译泥咕咕识别特征：0%\n请保持网页在前台。");
  // 缩小源图以节省手机 GPU 内存，保留完整画面比例
@@ -57,7 +58,7 @@ async function makeTarget(){
  const mini=new Image();
  mini.src=cv.toDataURL("image/jpeg",.8);
  await mini.decode();
- const compiler=new window.MINDAR.IMAGE.Compiler();
+ const compiler=new CompilerClass();
  await compiler.compileImageTargets([mini],p=>say("正在分析泥咕咕识别特征："+Math.min(100,Math.round(p))+"%\n刷新网页会重新分析，这是测试版的正常情况。"));
  const buffer=await compiler.exportData();
  if(photoUrl)URL.revokeObjectURL(photoUrl);
