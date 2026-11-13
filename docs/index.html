@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AR 粒子从画中飞出</title>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}</script>
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;background:#040b18;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+#ar{position:fixed;inset:0}#intro{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#092741,#040b18);padding:24px;text-align:center}
+.panel{max-width:380px}h1{font-size:26px;margin:0 0 14px}p{font-size:14px;line-height:1.75;color:#cad8e9}button{border:0;background:#7bf2ff;border-radius:12px;padding:13px 22px;font-size:16px;color:#061723;font-weight:bold;cursor:pointer}a{color:#7bf2ff}
+#error{color:#ffd0d0;font-size:13px;min-height:18px}#hud{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:10px;right:10px;text-align:center;z-index:20;display:none;pointer-events:none}
+#hint{display:inline-block;background:#071b2fdf;border:1px solid #65eaff77;border-radius:24px;padding:12px;font-size:13px}
+#replay{pointer-events:auto;font-size:13px;padding:10px 14px;margin-left:8px}
+</style></head><body>
+<div id="ar"></div>
+<div id="intro"><div class="panel"><h1>✨ AR 粒子从画中飞出</h1>
+<p>请在 iPhone Safari 打开本页，点击按钮允许摄像头，对准指定测试图片。识别成功后，3D 粒子会从图片表面向外飞出。</p>
+<button type="button" id="start">开启 AR 摄像头</button>
+<p><a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener">查看官方测试图片（需另一屏幕或打印）</a></p>
+<p>这是测试版本：要识别你自己的海报，需先用 MindAR 图片编译器生成 targets.mind，再修改目标文件地址。</p><div id="error" role="alert"></div></div></div>
+<div id="hud"><span id="hint">请对准测试图片</span> <button type="button" id="replay">重播</button></div>
+<script type="module">
+import * as THREE from 'three';
+import {MindARThree} from 'mindar-image-three';
+// 更换自己的图片时，把上传的 targets.mind 放在 docs/，并将此地址改成 './targets.mind'。
+const TARGET='https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind';
+const N=1100, RATIO=.552, TIME=2700;
+const intro=document.getElementById('intro'),error=document.getElementById('error'),hud=document.getElementById('hud'),hint=document.getElementById('hint');
+const ar=new MindARThree({container:document.getElementById('ar'),imageTargetSrc:TARGET,maxTrack:1});
+const {renderer,scene,camera}=ar;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
+const anchor=ar.addAnchor(0);
+let active=false,startTime=0;
+const texCanvas=document.createElement('canvas');texCanvas.width=texCanvas.height=64;
+const ctx=texCanvas.getContext('2d');
+const grad=ctx.createRadialGradient(32,32,0,32,32,32);
+grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(.25,'rgba(255,255,255,.94)');grad.addColorStop(.6,'rgba(255,255,255,.23)');grad.addColorStop(1,'rgba(255,255,255,0)');
+ctx.fillStyle=grad;ctx.fillRect(0,0,64,64);
+const positions=new Float32Array(N*3),origin=new Float32Array(N*3),dest=new Float32Array(N*3),colors=new Float32Array(N*3),delay=new Float32Array(N),phase=new Float32Array(N);
+const tint=new THREE.Color();
+for(let i=0;i<N;i++){
+ const j=i*3,x=(Math.random()-.5)*.9,y=(Math.random()-.5)*RATIO*.9;
+ origin[j]=positions[j]=x;origin[j+1]=positions[j+1]=y;origin[j+2]=positions[j+2]=.012;
+ dest[j]=x*1.35+(Math.random()-.5)*.2;dest[j+1]=y*1.6+(Math.random()-.5)*.25;dest[j+2]=.25+Math.random()*.8;
+ phase[i]=Math.random()*Math.PI*2;delay[i]=Math.random()*.25;
+ tint.setHSL(.52+Math.random()*.27,.9,.62+Math.random()*.24);
+ colors[j]=tint.r;colors[j+1]=tint.g;colors[j+2]=tint.b;
+}
+const geo=new THREE.BufferGeometry();
+geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+const points=new THREE.Points(geo,new THREE.PointsMaterial({size:.018,map:new THREE.CanvasTexture(texCanvas),vertexColors:true,transparent:true,opacity:.94,blending:THREE.AdditiveBlending,depthWrite:false}));
+points.frustumCulled=false;anchor.group.add(points);
+anchor.onTargetFound=()=>{active=true;startTime=performance.now();hint.textContent='识别成功，粒子飞出中！'};
+anchor.onTargetLost=()=>{active=false;startTime=0;hint.textContent='请重新对准测试图片'};
+function render(){
+ if(active&&startTime){
+  const t=Math.min(1,(performance.now()-startTime)/TIME),now=performance.now()/1000;
+  for(let i=0;i<N;i++){
+   const j=3*i,l=Math.max(0,Math.min(1,(t-delay[i])/(1-delay[i]))),e=1-Math.pow(1-l,3);
+   const twist=Math.sin(e*8+phase[i])*.05*Math.sin(Math.PI*e);
+   positions[j]=origin[j]+(dest[j]-origin[j])*e+twist;
+   positions[j+1]=origin[j+1]+(dest[j+1]-origin[j+1])*e+.04*Math.sin(e*7+phase[i])*Math.sin(Math.PI*e);
+   positions[j+2]=origin[j+2]+(dest[j+2]-origin[j+2])*e;
+   if(t===1){positions[j]+=.008*Math.sin(now+phase[i]);positions[j+1]+=.008*Math.cos(now+phase[i]);}
+  }
+  geo.attributes.position.needsUpdate=true;
+ }
+ renderer.render(scene,camera);
+}
+document.getElementById('start').addEventListener('click',async()=>{
+ const button=document.getElementById('start');button.disabled=true;button.textContent='正在开启摄像头…';error.textContent='';
+ try{await ar.start();renderer.setAnimationLoop(render);intro.style.display='none';hud.style.display='block';}
+ catch(err){console.error(err);button.disabled=false;button.textContent='重试开启摄像头';error.textContent='启动失败。请在 Safari 中打开 HTTPS 网页，并允许使用相机。'}
+});
+document.getElementById('replay').addEventListener('click',()=>{if(active)startTime=performance.now()});
+</script></body></html>
