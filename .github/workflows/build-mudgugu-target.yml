@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -37,6 +39,7 @@ jobs:
             echo "Local bundles already committed"
           else
             git commit -m "Vendor MindAR and Three.js for reliable mobile AR loading"
+            git pull --rebase origin main
             git push
           fi
       - name: Install browser
