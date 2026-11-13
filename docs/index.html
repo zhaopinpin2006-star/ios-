@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="theme-color" content="#061729"/><title>泥咕咕 · AR 破画而出</title>
-<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/","mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"}}</script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","mindar-image-three":"./vendor/mindar-image-three.prod.js"}}</script>
 <style>
 *{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",Arial,sans-serif;background:#071421;color:#fff}
 #ar{position:fixed;inset:0}#intro{position:fixed;inset:0;z-index:10;overflow-y:auto;background:linear-gradient(145deg,#125173,#0b1c32 62%,#070d17);padding:24px;display:flex;align-items:center;justify-content:center}
@@ -44,9 +44,9 @@ function script(src){
 function imageFromFile(f){return new Promise((res,rej)=>{const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{URL.revokeObjectURL(url);res(img)};img.onerror=()=>rej(new Error("图片读取失败，请重新选择照片"));img.src=url})}
 function threeTexture(THREE,markup){return new Promise((res,rej)=>{const uri=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml"}));const img=new Image();img.onload=()=>{const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.colorSpace=THREE.SRGBColorSpace;URL.revokeObjectURL(uri);res(tex)};img.onerror=()=>rej(new Error("泥咕咕图形贴图生成失败"));img.src=uri})}
 async function makeTarget(){
- if(!file.files.length){say("正在准备你上传的泥咕咕海报识别图…");}
+ if(!file.files.length){say("正在检查预编译识别数据…");try{const exists=await fetch("./targets.mind",{method:"HEAD",cache:"no-store"});if(exists.ok){say("检测到已编译识别文件，手机无须再编译图片。");return {url:"./targets.mind",ratio:256/260,custom:true};}}catch(e){}say("暂未找到预编译目标，切换到手机端编译…");}
  say("正在加载图片识别编译器…（首次打开需要联网）");
- const compilerModule=await import("https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js");
+ const compilerModule=await import("./vendor/mindar-image.prod.js");
  const CompilerClass=compilerModule.Compiler||window.MINDAR?.IMAGE?.Compiler;
  if(typeof CompilerClass!=="function")throw new Error("图片编译器模块已加载，但未找到 Compiler 导出。");
  const img=file.files.length?await imageFromFile(file.files[0]):await (async()=>{const x=new Image();x.src="./mudgugu-target.jpg?v=2";await x.decode();return x;})();
