@@ -1,139 +1,44 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<meta name="theme-color" content="#061729"/><title>泥咕咕 · AR 破画而出</title>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/","mindar-image-three":"./vendor/mindar-image-three.prod.js"}}</script>
-<style>
-*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",Arial,sans-serif;background:#071421;color:#fff}
-#ar{position:fixed;inset:0}#intro{position:fixed;inset:0;z-index:10;overflow-y:auto;background:linear-gradient(145deg,#125173,#0b1c32 62%,#070d17);padding:24px;display:flex;align-items:center;justify-content:center}
-.panel{width:100%;max-width:410px;text-align:center}h1{font-size:27px;margin:0 0 12px}p{font-size:14px;color:#cee3ed;line-height:1.72;margin:10px 0}
-strong{color:#fff}button{border:0;background:#84f6eb;color:#082025;border-radius:13px;padding:14px 20px;font-weight:700;font-size:16px;cursor:pointer}button:disabled{opacity:.6}
-.file-label{display:block;margin:13px auto 7px;background:#16415c;border:1px dashed #7ccdda;border-radius:12px;padding:14px 10px;color:#e2fdff;font-size:14px;cursor:pointer}
-.file-label input{width:1px;height:1px;opacity:0;position:absolute}#filename{font-size:12px;color:#9cd6e3}
-#start{width:100%;margin-top:14px}#status{font-size:13px;min-height:48px;color:#bffdf3;margin:12px 0 6px;white-space:pre-wrap;word-break:break-word}
-#hud{display:none;position:fixed;z-index:9;left:10px;right:10px;bottom:calc(16px + env(safe-area-inset-bottom));text-align:center}
-#hint{display:inline-block;font-size:13px;color:#fff;border:1px solid #68f9f977;padding:10px 12px;border-radius:20px;background:#06172dd9}
-#replay{padding:10px 14px;font-size:13px;margin-left:6px}a{color:#91f6f2}
-</style></head><body>
-<div id="ar"></div>
-<div id="intro"><div class="panel">
-<h1>🪽 泥咕咕 · 破画而出</h1>
-<p>已内置你的<strong>泥咕咕海报识别图</strong>。直接开启 AR 摄像头，对准纸质海报，即可触发泥咕咕飞出与粒子特效。</p><img src="./mudgugu-target.jpg" alt="当前正在识别的泥咕咕图案" style="width:110px;max-height:125px;object-fit:contain;border-radius:8px;border:2px solid #72d8e0;display:block;margin:8px auto"/><p style="font-size:12px;margin:0">默认识别目标：上面这张泥咕咕图案</p>
-<label class="file-label" for="photo">📷 更换识别图片（可选）
-<input id="photo" type="file" accept="image/*"></label>
-<div id="filename">已自动使用泥咕咕海报，无须选择照片</div>
-<button id="start" type="button">开启 AR 摄像头</button>
-<div id="status">已载入泥咕咕识别图。点击上方按钮即可开始。请使用 Safari，不要在微信内置浏览器中开启。</div>
-<p style="font-size:12px">请让整幅鸟的图案和上方部分标题进入镜头，保持光线均匀，距离约 20–40 厘米。仅有一部手机时，需要纸质海报或另一台设备显示原图。</p>
-</div></div>
-<div id="hud"><span id="hint">正在寻找泥咕咕海报…</span><button id="replay" type="button">再次飞出</button></div>
-<script>
-(function(){
-"use strict";
-const button=document.getElementById("start"),status=document.getElementById("status"),file=document.getElementById("photo"),hint=document.getElementById("hint");
-let ar=null,runner=null,active=false,began=0,photoUrl=null;
-const BIRD_SVG="<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 720 640\">\n<defs><radialGradient id=\"shine\"><stop stop-color=\"#4c4f4e\"/><stop offset=\"1\" stop-color=\"#16171a\"/></radialGradient></defs>\n<path d=\"M270 587 C212 557 182 497 204 403 C199 267 277 133 386 110 C520 91 610 188 633 339 C660 471 620 568 530 588 Z\" fill=\"url(#shine)\" stroke=\"#272222\" stroke-width=\"11\"/>\n<path d=\"M331 360 C234 274 148 272 64 341 C-6 391 3 463 62 475 C39 543 73 558 133 545 C217 534 274 454 331 360Z\" fill=\"#db3548\" stroke=\"#4a2626\" stroke-width=\"12\"/>\n<path d=\"M27 418 Q115 333 240 353\" fill=\"none\" stroke=\"#ff8b89\" stroke-width=\"16\" opacity=\".2\"/>\n<ellipse cx=\"80\" cy=\"386\" rx=\"31\" ry=\"14\" fill=\"#fff5e4\" transform=\"rotate(-26 80 386)\"/>\n<ellipse cx=\"172\" cy=\"327\" rx=\"30\" ry=\"12\" fill=\"#fff5e4\" transform=\"rotate(-12 172 327)\"/>\n<path d=\"M92 477 Q106 444 139 446 Q125 476 92 477ZM172 472 Q190 441 227 430 Q212 463 172 472ZM240 424 Q256 400 286 392 Q279 416 240 424Z\" fill=\"#ffde69\"/>\n<circle cx=\"481\" cy=\"258\" r=\"64\" fill=\"#fffdf6\"/><circle cx=\"490\" cy=\"258\" r=\"48\" fill=\"#151515\"/><circle cx=\"508\" cy=\"240\" r=\"17\" fill=\"#fff\"/>\n<ellipse cx=\"347\" cy=\"333\" rx=\"24\" ry=\"20\" fill=\"#ea8071\"/><ellipse cx=\"392\" cy=\"174\" rx=\"29\" ry=\"13\" transform=\"rotate(-36 392 174)\" fill=\"#777475\"/>\n<path d=\"M565 215 Q622 195 642 229 Q647 283 585 291 L552 255Z\" fill=\"#f3b21c\"/><path d=\"M608 244 L583 260 L611 268\" fill=\"#2b1d1a\" stroke=\"#7f3023\" stroke-width=\"9\"/>\n<g fill=\"#fff9ef\"><path d=\"M392 377 Q367 412 397 437 Q433 419 392 377\"/><path d=\"M453 382 Q425 426 461 450 Q487 425 453 382\"/><path d=\"M516 380 Q496 407 525 429 Q551 409 516 380\"/><path d=\"M570 376 Q559 395 580 410 Q594 395 570 376\"/></g>\n<g transform=\"translate(442 477)\"><ellipse cx=\"-68\" cy=\"0\" rx=\"43\" ry=\"25\" fill=\"#8ebd20\" transform=\"rotate(-25 -68 0)\"/><ellipse cx=\"71\" cy=\"6\" rx=\"49\" ry=\"25\" fill=\"#8ebd20\" transform=\"rotate(-25 71 6)\"/><ellipse cx=\"-42\" cy=\"46\" rx=\"43\" ry=\"24\" fill=\"#89bd1f\" transform=\"rotate(-60 -42 46)\"/><ellipse cx=\"52\" cy=\"53\" rx=\"43\" ry=\"24\" fill=\"#89bd1f\" transform=\"rotate(-50 52 53)\"/><g fill=\"#fffdf2\"><ellipse cx=\"0\" cy=\"-40\" rx=\"34\" ry=\"46\"/><ellipse cx=\"-45\" cy=\"-17\" rx=\"43\" ry=\"37\"/><ellipse cx=\"-34\" cy=\"30\" rx=\"42\" ry=\"37\"/><ellipse cx=\"24\" cy=\"37\" rx=\"40\" ry=\"37\"/><ellipse cx=\"48\" cy=\"-13\" rx=\"38\" ry=\"37\"/></g><path d=\"M0-36 C17-45 30-19 17-10 C39-5 31 26 11 21 C0 46-20 24-17 12 C-43-5-16-26 0-36Z\" fill=\"#d33b45\"/><path d=\"M0-13 L8 0 L21 3 L9 13 L11 26 L0 20 L-10 26 L-8 11 L-20 3 L-6 0 Z\" fill=\"#ffde48\"/></g>\n<path d=\"M335 585 C317 552 342 533 372 543 C401 533 415 558 407 589 Q372 609 335 585\" fill=\"#fac21d\"/><path d=\"M480 584 C464 548 485 536 511 544 C541 531 557 551 553 585 Q525 614 480 584\" fill=\"#fac21d\"/>\n</svg>";
-const WING_SVG="<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 450 320\"><path d=\"M412 85 Q247 -30 92 71 Q-10 120 15 202 Q28 238 83 222 Q58 277 111 292 Q258 309 412 85Z\" fill=\"#d93643\" stroke=\"#522c29\" stroke-width=\"10\"/><ellipse cx=\"102\" cy=\"122\" rx=\"35\" ry=\"12\" transform=\"rotate(-30 102 122)\" fill=\"#fff2df\"/><ellipse cx=\"248\" cy=\"73\" rx=\"36\" ry=\"12\" transform=\"rotate(-18 248 73)\" fill=\"#fff2df\"/><path d=\"M109 221 Q137 171 206 164 Q174 207 109 221 M224 202 Q246 164 300 150 Q278 187 224 202\" fill=\"#ffde64\"/></svg>";
-function say(s){status.textContent=s;}
-window.addEventListener("error",e=>{say("网页脚本错误："+(e.message||"未知错误")+"\n请尝试使用 Safari 重新打开。")});
-window.addEventListener("unhandledrejection",e=>{say("运行出错："+String(e.reason?.message||e.reason||"未知错误"))});
-file.addEventListener("change",()=>{document.getElementById("filename").textContent=file.files[0]?"已选择："+file.files[0].name:"尚未选择图片";});
-function script(src){
- return new Promise((res,rej)=>{const el=document.createElement("script");el.src=src;el.onload=res;el.onerror=()=>rej(new Error("特征识别库加载失败，请检查网络或改用 Safari："+src));document.head.appendChild(el)});
-}
-function imageFromFile(f){return new Promise((res,rej)=>{const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{URL.revokeObjectURL(url);res(img)};img.onerror=()=>rej(new Error("图片读取失败，请重新选择照片"));img.src=url})}
-function threeTexture(THREE,markup){return new Promise((res,rej)=>{const uri=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml"}));const img=new Image();img.onload=()=>{const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.colorSpace=THREE.SRGBColorSpace;URL.revokeObjectURL(uri);res(tex)};img.onerror=()=>rej(new Error("泥咕咕图形贴图生成失败"));img.src=uri})}
-async function makeTarget(){
- if(!file.files.length){say("正在检查预编译识别数据…");try{const exists=await fetch("./targets.mind",{method:"HEAD",cache:"no-store"});if(exists.ok){say("检测到已编译识别文件，手机无须再编译图片。");return {url:"./targets.mind",ratio:256/260,custom:true};}}catch(e){}say("暂未找到预编译目标，切换到手机端编译…");}
- say("正在加载图片识别编译器…（首次打开需要联网）");
- const compilerModule=await import("./vendor/mindar-image.prod.js");
- const CompilerClass=compilerModule.Compiler||window.MINDAR?.IMAGE?.Compiler;
- if(typeof CompilerClass!=="function")throw new Error("图片编译器模块已加载，但未找到 Compiler 导出。");
- const img=file.files.length?await imageFromFile(file.files[0]):await (async()=>{const x=new Image();x.src="./mudgugu-target.jpg?v=2";await x.decode();return x;})();
- say("正在编译泥咕咕识别特征：0%\n请保持网页在前台。");
- // 缩小源图以节省手机 GPU 内存，保留完整画面比例
- const max=700,scale=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement("canvas");
- cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
- cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
- const mini=new Image();
- mini.src=cv.toDataURL("image/jpeg",.8);
- await mini.decode();
- const compiler=new CompilerClass();
- await compiler.compileImageTargets([mini],p=>say("正在分析泥咕咕识别特征："+Math.min(100,Math.round(p))+"%\n刷新网页会重新分析，这是测试版的正常情况。"));
- const buffer=await compiler.exportData();
- if(photoUrl)URL.revokeObjectURL(photoUrl);
- photoUrl=URL.createObjectURL(new Blob([buffer],{type:"application/octet-stream"}));
- return {url:photoUrl,ratio:img.height/img.width,custom:true};
-}
-function addParticles(THREE,anchor){
- const n=750,pos=new Float32Array(n*3),source=new Float32Array(n*3),end=new Float32Array(n*3),colors=new Float32Array(n*3),timing=new Float32Array(n);
- const c=new THREE.Color();
- for(let i=0;i<n;i++){const j=3*i,x=(Math.random()-.5)*.72,y=(Math.random()-.5)*.65;
- source[j]=pos[j]=x;source[j+1]=pos[j+1]=y;source[j+2]=pos[j+2]=.02;
- end[j]=x*1.6+(Math.random()-.5)*.45;end[j+1]=y*1.6+.1+(Math.random()-.5)*.45;end[j+2]=.35+Math.random()*.8;
- c.setHSL(.08+Math.random()*.53,.9,.6+Math.random()*.3);colors[j]=c.r;colors[j+1]=c.g;colors[j+2]=c.b;timing[i]=Math.random()*.25;
- }
- const canvas=document.createElement("canvas");canvas.width=canvas.height=32;const ctx=canvas.getContext("2d"),grad=ctx.createRadialGradient(16,16,0,16,16,16);
- grad.addColorStop(0,"#fff");grad.addColorStop(.26,"#fff");grad.addColorStop(1,"#ffffff00");ctx.fillStyle=grad;ctx.fillRect(0,0,32,32);
- const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.BufferAttribute(pos,3));geo.setAttribute("color",new THREE.BufferAttribute(colors,3));
- const points=new THREE.Points(geo,new THREE.PointsMaterial({map:new THREE.CanvasTexture(canvas),size:.022,vertexColors:true,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));
- points.frustumCulled=false;anchor.group.add(points);
- return t=>{
-  const e=Math.min(1,t);
-  for(let i=0;i<n;i++){const j=3*i,p=Math.max(0,Math.min(1,(e-timing[i])/(1-timing[i]))),u=1-Math.pow(1-p,3);
-   pos[j]=source[j]+(end[j]-source[j])*u+.02*Math.sin(u*9+i)*Math.sin(Math.PI*u);
-   pos[j+1]=source[j+1]+(end[j+1]-source[j+1])*u;
-   pos[j+2]=source[j+2]+(end[j+2]-source[j+2])*u;
-  }
-  geo.attributes.position.needsUpdate=true;
- };
-}
-async function start(){
- button.disabled=true;
- try{
-  if(!window.isSecureContext)throw new Error("此网页不是 HTTPS，请使用 GitHub Pages 的 https:// 地址打开。");
-  if(!navigator.mediaDevices?.getUserMedia)throw new Error("此浏览器无法打开摄像头，请在 iPhone Safari 中访问，不要在微信里打开。");
-  say("正在请求摄像头权限…");
-  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
-  stream.getTracks().forEach(t=>t.stop());
-  say("摄像头权限已通过，准备加载 AR 资源…");
-  const info=await makeTarget();
-  say("正在加载 Three.js 与 AR 跟踪引擎…");
-  const [THREE,{MindARThree}]=await Promise.all([import("three"),import("mindar-image-three")]);
-  ar=new MindARThree({container:document.getElementById("ar"),imageTargetSrc:info.url,maxTrack:1});
-  const {renderer,scene,camera}=ar,anchor=ar.addAnchor(0);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
-  const birdTexture=await threeTexture(THREE,BIRD_SVG),wingTexture=await threeTexture(THREE,WING_SVG);
-  const height=info.custom?Math.min(info.ratio*.62,.9):.46;
-  const bird=new THREE.Group();bird.position.set(-.02,-.05,.025);
-  const body=new THREE.Mesh(new THREE.PlaneGeometry(height*1.11,height),new THREE.MeshBasicMaterial({map:birdTexture,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  bird.add(body);
-  // 多层侧面创造浮雕感；这属于 2.5D 动画，尚非可旋转的完整 3D 网格模型
-  const back=new THREE.Mesh(new THREE.PlaneGeometry(height*1.11,height),new THREE.MeshBasicMaterial({map:birdTexture,transparent:true,depthWrite:false,color:0x555c65,side:THREE.DoubleSide}));
-  back.position.z=-.021;back.scale.set(.98,.98,1);bird.add(back);
-  const wingPivot=new THREE.Group();wingPivot.position.set(-height*.08,-height*.04,.028);
-  const wing=new THREE.Mesh(new THREE.PlaneGeometry(height*.5,height*.37),new THREE.MeshBasicMaterial({map:wingTexture,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
-  wing.position.set(-height*.17,-height*.04,0);wingPivot.add(wing);bird.add(wingPivot);
-  anchor.group.add(bird);
-  const animateParticles=addParticles(THREE,anchor);
-  anchor.onTargetFound=()=>{active=true;began=performance.now();hint.textContent="泥咕咕已识别，飞出来啦！"};
-  anchor.onTargetLost=()=>{active=false;began=0;hint.textContent="请拍完整个泥咕咕图案，略微远离海报"};
-  say("正在启动 AR 跟踪，请保持海报清晰…");
-  await ar.start();
-  renderer.setAnimationLoop(()=>{
-   const elapsed=active&&began?(performance.now()-began)/1000:0;
-   const t=Math.min(1,elapsed/2.3),e=1-Math.pow(1-t,3);
-   bird.position.z=.02+e*.53;bird.position.y=-.08+e*.14+(active?.014*Math.sin(performance.now()/290):0);
-   bird.scale.setScalar(.25+e*.75);
-   bird.rotation.y=Math.sin(Math.min(1,t)*Math.PI)*.25+(active?.06*Math.sin(performance.now()/630):0);
-   wingPivot.rotation.y=active?.5*Math.sin(performance.now()/180):0;
-   animateParticles(t);
-   renderer.render(scene,camera);
-  });
-  document.getElementById("intro").style.display="none";document.getElementById("hud").style.display="block";
- }catch(e){console.error(e);say("启动失败："+(e?.message||String(e))+"\n请使用 Safari、检查网络，或重新选择清晰的图片。");button.disabled=false;button.textContent="重试开启 AR";}
-}
-button.addEventListener("click",start);
-document.getElementById("replay").addEventListener("click",()=>{if(active)began=performance.now();});
-})();
-</script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#151416">
+  <title>泥咕咕 · 破画而出</title>
+  <link rel="icon" href="./mudgugu-target.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="./mudgugu.css?v=3d1">
+  <script type="importmap">
+    {"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}
+  </script>
+</head>
+<body>
+  <div id="ar" aria-hidden="true"></div>
+  <main id="intro">
+    <div class="panel">
+      <div class="poster"><img src="./mudgugu-target.jpg" width="260" height="256" alt="扫描目标。浅蓝海报上的黑色泥咕咕"></div>
+      <div class="intro-copy">
+        <p class="origin">河南浚县 · 泥塑</p>
+        <h1>泥咕咕<br>破画而出</h1>
+        <p class="instructions">打开摄像头，把海报上的整只泥咕咕放进画面，看它扇动翅膀飞出来。</p>
+        <div class="actions">
+          <button id="start" type="button">开启 AR 摄像头</button>
+          <button id="preview-button" class="secondary" type="button">预览 3D 模型</button>
+        </div>
+        <p id="status" role="status"></p>
+        <label class="file-label">更换识别图片（可选）<input id="photo" type="file" accept="image/*"></label>
+      </div>
+    </div>
+  </main>
+  <section id="preview" hidden aria-label="泥咕咕 3D 预览">
+    <div id="model-stage" aria-hidden="true"></div>
+    <header class="preview-header"><h2>泥咕咕</h2><button id="close-preview" class="secondary" type="button">返回</button></header>
+    <p id="preview-status" role="status">拖动查看模型的各个角度</p>
+  </section>
+  <div id="hud" hidden>
+    <span id="hint" role="status">正在寻找泥咕咕海报…</span>
+    <button id="replay" type="button" disabled>再次飞出</button>
+    <button id="stop" class="secondary" type="button">退出</button>
+  </div>
+  <script type="module" src="./webar.js?v=3d1"></script>
+</body>
+</html>

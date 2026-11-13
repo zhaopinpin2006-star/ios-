@@ -28,7 +28,8 @@ jobs:
           npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.1 mind-ar@1.2.5 three@0.160.0
           mkdir -p docs/vendor
           cp node_modules/mind-ar/dist/mindar-image.prod.js docs/vendor/mindar-image.prod.js
-          cp node_modules/mind-ar/dist/mindar-image-three.prod.js docs/vendor/mindar-image-three.prod.js
+          # This checked-in adapter also handles camera cleanup and target-load errors.
+          test -f docs/vendor/mindar-image-three.prod.js || cp node_modules/mind-ar/dist/mindar-image-three.prod.js docs/vendor/mindar-image-three.prod.js
           cp node_modules/mind-ar/dist/controller-*.js docs/vendor/
           cp node_modules/mind-ar/dist/ui-*.js docs/vendor/
           mkdir -p docs/vendor/addons/renderers

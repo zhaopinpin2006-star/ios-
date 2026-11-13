@@ -1,0 +1,122 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #151416;
+  color: #fff3dd;
+  --ink: #151416;
+  --paper: #fff3dd;
+  --accent: #ffcb75;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+#ar, #intro, #preview { position: fixed; inset: 0; }
+#ar { isolation: isolate; }
+#intro {
+  overflow: auto;
+  display: grid;
+  align-items: safe center;
+  justify-items: center;
+  padding: max(28px, env(safe-area-inset-top)) 24px max(30px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 25% 15%, #47302b, #211b1c 54%, #151416 87%);
+}
+.panel {
+  width: min(100%, 780px);
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(30px, 6vw, 70px);
+}
+.poster {
+  padding: 12px;
+  background: #fff3dd;
+  border-radius: 4px;
+  box-shadow: 0 16px 60px #120e0e85;
+  transform: rotate(-3deg);
+}
+.poster img { width: 100%; height: auto; display: block; border-radius: 2px; }
+.origin {
+  color: var(--accent);
+  letter-spacing: .16em;
+  font-weight: 600;
+  font-size: .82rem;
+  margin: 0 0 14px;
+}
+h1 {
+  margin: 0;
+  font-family: "Songti SC", SimSun, serif;
+  font-size: clamp(3rem, 7vw, 5rem);
+  font-weight: 800;
+  line-height: 1.08;
+}
+.instructions { color: #dfcfc3; line-height: 1.65; margin: 18px 0 22px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 11px 14px;
+  min-height: 44px;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #211711;
+  background: var(--accent);
+  cursor: pointer;
+}
+button:disabled { opacity: .55; cursor: default; }
+button.secondary { border-color: #fff3dd4d; background: #211b1ce6; color: var(--paper); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#status { font-size: .86rem; line-height: 1.55; color: var(--accent); margin: 12px 0; }
+#status:empty { display: none; }
+.file-label {
+  display: grid;
+  gap: 5px;
+  font-size: .75rem;
+  color: #d1bdb1;
+  margin-top: 20px;
+}
+.file-label input { max-width: 100%; color: inherit; }
+#preview {
+  background: radial-gradient(ellipse at 48% 40%, #654139, #281f23 68%, #151416);
+}
+#model-stage { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+#model-stage:active { cursor: grabbing; }
+#model-stage canvas { display: block; }
+.preview-header {
+  position: absolute;
+  inset: max(18px, env(safe-area-inset-top)) 20px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.preview-header h2 { font: bold 1.45rem "Songti SC", SimSun, serif; margin: 0; }
+.preview-header button { pointer-events: auto; }
+#preview-status {
+  position: absolute;
+  inset: auto 20px max(16px, env(safe-area-inset-bottom));
+  text-align: center;
+  color: #f2d8bf;
+  pointer-events: none;
+}
+#hud {
+  position: fixed;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+}
+#hint { padding: 10px 12px; border-radius: 10px; background: #211b1ce6; font-size: .84rem; }
+@media (max-width: 640px) {
+  .panel { grid-template-columns: minmax(0, 370px); gap: 24px; }
+  .poster { width: min(49%, 190px); padding: 7px; margin-left: 5px; }
+  h1 { font-size: clamp(2.6rem, 11vw, 4rem); }
+  h1 br { display: none; }
+  .origin { margin-bottom: 8px; }
+  .instructions { margin: 13px 0 16px; }
+}
