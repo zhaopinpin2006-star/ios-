@@ -29,6 +29,10 @@ jobs:
           mkdir -p docs/vendor
           cp node_modules/mind-ar/dist/mindar-image.prod.js docs/vendor/mindar-image.prod.js
           cp node_modules/mind-ar/dist/mindar-image-three.prod.js docs/vendor/mindar-image-three.prod.js
+          cp node_modules/mind-ar/dist/controller-*.js docs/vendor/
+          cp node_modules/mind-ar/dist/ui-*.js docs/vendor/
+          mkdir -p docs/vendor/addons/renderers
+          cp node_modules/three/examples/jsm/renderers/CSS3DRenderer.js docs/vendor/addons/renderers/CSS3DRenderer.js
           cp node_modules/three/build/three.module.js docs/vendor/three.module.js
       - name: Publish local libraries
         run: |
