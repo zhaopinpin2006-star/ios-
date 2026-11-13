@@ -13,7 +13,7 @@ permissions:
 jobs:
   compile:
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,20 +21,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Playwright
+      - name: Install local AR dependencies
         run: |
-          npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install chromium --with-deps
-      - name: Compile target through MindAR in Chromium
-        run: node scripts/compile-mudgugu.mjs
-      - name: Commit precompiled MindAR target
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.1 mind-ar@1.2.5 three@0.160.0
+          mkdir -p docs/vendor
+          cp node_modules/mind-ar/dist/mindar-image.prod.js docs/vendor/mindar-image.prod.js
+          cp node_modules/mind-ar/dist/mindar-image-three.prod.js docs/vendor/mindar-image-three.prod.js
+          cp node_modules/three/build/three.module.js docs/vendor/three.module.js
+      - name: Publish local libraries
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/vendor
+          if git diff --cached --quiet; then
+            echo "Local bundles already committed"
+          else
+            git commit -m "Vendor MindAR and Three.js for reliable mobile AR loading"
+            git push
+          fi
+      - name: Install browser
+        run: npx playwright install chromium --with-deps
+      - name: Precompile target with headless Chromium
+        run: node scripts/compile-mudgugu.mjs
+      - name: Publish compiled tracking target
+        run: |
           git add docs/targets.mind
           if git diff --cached --quiet; then
-            echo "Target already up-to-date"
+            echo "Target is already up-to-date"
           else
-            git commit -m "Precompile Mudgugu image target for mobile AR"
+            git commit -m "Precompile Mudgugu image target for fast mobile AR"
             git push
           fi
