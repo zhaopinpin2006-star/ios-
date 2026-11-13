@@ -33,12 +33,15 @@ try{
     const buffer=await compiler.exportData();
     window.__targetUrl=URL.createObjectURL(new Blob([buffer],{type:'application/octet-stream'}));
   });
-  await page.evaluate(()=>{
-    const a=document.createElement('a');
-    a.href=window.__targetUrl;a.download='targets.mind';a.id='downloadTarget';a.textContent='Save';document.body.appendChild(a);
+  const base64=await page.evaluate(async()=>{
+    const bytes=new Uint8Array(await (await fetch(window.__targetUrl)).arrayBuffer());
+    const parts=[];
+    for(let start=0;start<bytes.length;start+=16384){
+      parts.push(String.fromCharCode(...bytes.subarray(start,start+16384)));
+    }
+    return btoa(parts.join(''));
   });
-  const [download]=await Promise.all([page.waitForEvent('download',{timeout:20000}),page.locator('#downloadTarget').click()]);
-  await download.saveAs(path.resolve('docs/targets.mind'));
+  await fs.writeFile(path.resolve('docs/targets.mind'),Buffer.from(base64,'base64'));
   const stat=await fs.stat('docs/targets.mind');
   if(stat.size<200)throw new Error('Compiled target unexpectedly small: '+stat.size);
   console.log('Compiled docs/targets.mind',stat.size,'bytes');
