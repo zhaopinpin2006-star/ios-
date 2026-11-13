@@ -18,15 +18,15 @@ strong{color:#fff}button{border:0;background:#84f6eb;color:#082025;border-radius
 <div id="ar"></div>
 <div id="intro"><div class="panel">
 <h1>🪽 泥咕咕 · 破画而出</h1>
-<p>先选择你发来的<strong>泥咕咕海报照片</strong>，网页将现场生成识别数据。然后允许摄像头，用另一台设备显示海报或对准纸质海报，即可触发泥咕咕飞出与粒子特效。</p>
-<label class="file-label" for="photo">📷 第一步：从相册选择泥咕咕海报照片
+<p>已内置你的<strong>泥咕咕海报识别图</strong>。直接开启 AR 摄像头，对准纸质海报，即可触发泥咕咕飞出与粒子特效。</p><img src="./mudgugu-target.jpg" alt="当前正在识别的泥咕咕图案" style="width:110px;max-height:125px;object-fit:contain;border-radius:8px;border:2px solid #72d8e0;display:block;margin:8px auto"/><p style="font-size:12px;margin:0">默认识别目标：上面这张泥咕咕图案</p>
+<label class="file-label" for="photo">📷 更换识别图片（可选）
 <input id="photo" type="file" accept="image/*"></label>
-<div id="filename">尚未选择照片（不选则使用官方测试图片）</div>
-<button id="start" type="button">第二步：开启 AR 摄像头</button>
-<div id="status">等待操作。请尽量使用 Safari，不要在微信内置浏览器中开启。</div>
-<p style="font-size:12px">提示：只有一部手机时，需要把海报打印出来，或显示在另一台设备上。<a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" rel="noopener">官方测试图片</a></p>
+<div id="filename">已自动使用泥咕咕海报，无须选择照片</div>
+<button id="start" type="button">开启 AR 摄像头</button>
+<div id="status">已载入泥咕咕识别图。点击上方按钮即可开始。请使用 Safari，不要在微信内置浏览器中开启。</div>
+<p style="font-size:12px">请让整幅鸟的图案和上方部分标题进入镜头，保持光线均匀，距离约 20–40 厘米。仅有一部手机时，需要纸质海报或另一台设备显示原图。</p>
 </div></div>
-<div id="hud"><span id="hint">正在寻找海报…</span><button id="replay" type="button">再次飞出</button></div>
+<div id="hud"><span id="hint">正在寻找泥咕咕海报…</span><button id="replay" type="button">再次飞出</button></div>
 <script>
 (function(){
 "use strict";
@@ -44,21 +44,21 @@ function script(src){
 function imageFromFile(f){return new Promise((res,rej)=>{const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{URL.revokeObjectURL(url);res(img)};img.onerror=()=>rej(new Error("图片读取失败，请重新选择照片"));img.src=url})}
 function threeTexture(THREE,markup){return new Promise((res,rej)=>{const uri=URL.createObjectURL(new Blob([markup],{type:"image/svg+xml"}));const img=new Image();img.onload=()=>{const tex=new THREE.Texture(img);tex.needsUpdate=true;tex.colorSpace=THREE.SRGBColorSpace;URL.revokeObjectURL(uri);res(tex)};img.onerror=()=>rej(new Error("泥咕咕图形贴图生成失败"));img.src=uri})}
 async function makeTarget(){
- if(!file.files.length){say("正在使用官方测试图片…");return {url:"https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind",ratio:.552,custom:false};}
+ if(!file.files.length){say("正在准备你上传的泥咕咕海报识别图…");}
  say("正在加载图片识别编译器…（首次打开需要联网）");
  await script("https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js");
  if(!window.MINDAR?.IMAGE?.Compiler)throw new Error("图片编译器未能加载。请使用 Safari 或尝试关闭微信内置浏览器。");
- const img=await imageFromFile(file.files[0]);
- say("正在分析图片特征：0%\n此步骤可能耗时较久，请不要切换应用。");
+ const img=file.files.length?await imageFromFile(file.files[0]):await (async()=>{const x=new Image();x.src="./mudgugu-target.jpg?v=2";await x.decode();return x;})();
+ say("正在编译泥咕咕识别特征：0%\n请保持网页在前台。");
  // 缩小源图以节省手机 GPU 内存，保留完整画面比例
- const max=600,scale=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement("canvas");
+ const max=700,scale=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement("canvas");
  cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
  cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
  const mini=new Image();
  mini.src=cv.toDataURL("image/jpeg",.8);
  await mini.decode();
  const compiler=new window.MINDAR.IMAGE.Compiler();
- await compiler.compileImageTargets([mini],p=>say("正在分析图片特征："+Math.round(p*100)+"%\n首次扫描前只需完成一次，但刷新网页需要重新分析。"));
+ await compiler.compileImageTargets([mini],p=>say("正在分析泥咕咕识别特征："+Math.min(100,Math.round(p))+"%\n刷新网页会重新分析，这是测试版的正常情况。"));
  const buffer=await compiler.exportData();
  if(photoUrl)URL.revokeObjectURL(photoUrl);
  photoUrl=URL.createObjectURL(new Blob([buffer],{type:"application/octet-stream"}));
@@ -116,7 +116,7 @@ async function start(){
   anchor.group.add(bird);
   const animateParticles=addParticles(THREE,anchor);
   anchor.onTargetFound=()=>{active=true;began=performance.now();hint.textContent="泥咕咕已识别，飞出来啦！"};
-  anchor.onTargetLost=()=>{active=false;began=0;hint.textContent="请将摄像头重新对准泥咕咕海报"};
+  anchor.onTargetLost=()=>{active=false;began=0;hint.textContent="请拍完整个泥咕咕图案，略微远离海报"};
   say("正在启动 AR 跟踪，请保持海报清晰…");
   await ar.start();
   renderer.setAnimationLoop(()=>{
