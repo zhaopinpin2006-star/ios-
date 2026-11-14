@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
-export function createBurst(poster, targetRatio) {
-  const count = 360;
+export function createBurst(poster, targetRatio, base) {
+  const count = 300;
   const start = new Float32Array(count * 3);
   const position = new Float32Array(count * 3);
   const velocity = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const color = new THREE.Color();
-  const palette = [0xff543e, 0xffc85f, 0xfff0cf, 0xa8d65f];
+  const palette = [0xff543e, 0xffb84f, 0xffdc78, 0xfff0cf];
   const textureCanvas = document.createElement('canvas');
   textureCanvas.width = textureCanvas.height = 32;
   const context = textureCanvas.getContext('2d');
@@ -42,7 +42,9 @@ export function createBurst(poster, targetRatio) {
     const x = point?.[0] ?? (Math.random() - .5) * .65;
     const y = point?.[1] ?? (Math.random() - .5) * .55;
     start.set([x, y * targetRatio, .015], offset);
-    velocity.set([x * .9 + (Math.random() - .5) * .36, y * .55 + Math.random() * .5, .2 + Math.random() * .55], offset);
+    const angle = Math.random() * Math.PI * 2;
+    const distance = .12 + Math.random() * .49;
+    velocity.set([Math.cos(angle) * distance, Math.sin(angle) * distance, .06 + Math.random() * .47], offset);
     color.setHex(palette[i % palette.length]).toArray(colors, offset);
   }
   const geometry = new THREE.BufferGeometry();
@@ -50,21 +52,58 @@ export function createBurst(poster, targetRatio) {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const map = new THREE.CanvasTexture(textureCanvas);
   const material = new THREE.PointsMaterial({
-    map, size: .023, transparent: true, vertexColors: true, blending: THREE.AdditiveBlending,
+    map, size: .025, transparent: true, vertexColors: true, blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   const points = new THREE.Points(geometry, material);
+  points.name = 'PosterBurst';
   points.frustumCulled = false;
   points.visible = false;
 
-  function animate(elapsed) {
-    points.visible = elapsed >= 0 && elapsed < 1.65;
+  const motes = Array.from({ length: 22 }, () => ({
+    angle: Math.random() * Math.PI * 2,
+    radius: .15 + Math.random() * .27,
+    height: .055 + Math.random() * .18,
+  }));
+  const ambientPosition = new Float32Array(motes.length * 3);
+  const ambientGeometry = new THREE.BufferGeometry();
+  ambientGeometry.setAttribute('position', new THREE.BufferAttribute(ambientPosition, 3).setUsage(THREE.DynamicDrawUsage));
+  const ambientMaterial = new THREE.PointsMaterial({
+    map, color: 0xffd580, size: .016, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const ambient = new THREE.Points(ambientGeometry, ambientMaterial);
+  ambient.name = 'Embers';
+  ambient.frustumCulled = false;
+  ambient.visible = false;
+
+  function animate(elapsed, time) {
+    ambient.visible = time > .85;
+    if (ambient.visible) {
+      ambientMaterial.opacity = Math.min(1, time - .85) * (.48 + .14 * Math.sin(time * 1.7));
+      for (let i = 0; i < motes.length; i++) {
+        const { angle, radius, height } = motes[i];
+        const orbit = angle + time * .25;
+        const offset = i * 3;
+        ambientPosition[offset] = base.x + Math.cos(orbit) * radius;
+        ambientPosition[offset + 1] = base.y + Math.sin(orbit) * radius * .76;
+        ambientPosition[offset + 2] = height + .034 * Math.sin(time * 1.6 + angle);
+      }
+      ambientGeometry.attributes.position.needsUpdate = true;
+    }
+
+    const gatherDuration = .26;
+    const duration = 1.42;
+    points.visible = elapsed >= 0 && elapsed < duration;
     if (!points.visible) return;
-    const progress = Math.min(1, elapsed / 1.65);
+    const gather = Math.min(1, elapsed / gatherDuration) ** 1.7;
+    const progress = Math.max(0, (elapsed - gatherDuration) / (duration - gatherDuration));
     const spread = 1 - (1 - progress) ** 3;
-    material.opacity = Math.min(1, elapsed * 17) * (1 - progress ** 2);
-    for (let i = 0; i < position.length; i++) {
-      position[i] = start[i] + velocity[i] * spread;
+    material.opacity = Math.min(1, elapsed * 21) * (1 - progress) ** 1.2;
+    for (let i = 0; i < position.length; i += 3) {
+      position[i] = start[i] + (base.x - start[i]) * gather * .9 + velocity[i] * spread;
+      position[i + 1] = start[i + 1] + (base.y - start[i + 1]) * gather * .9 + velocity[i + 1] * spread;
+      position[i + 2] = start[i + 2] + .045 * gather + velocity[i + 2] * spread - .09 * progress ** 2;
     }
     geometry.attributes.position.needsUpdate = true;
   }
@@ -72,7 +111,9 @@ export function createBurst(poster, targetRatio) {
   function dispose() {
     geometry.dispose();
     material.dispose();
+    ambientGeometry.dispose();
+    ambientMaterial.dispose();
     map.dispose();
   }
-  return { points, animate, dispose };
+  return { points, ambient, animate, dispose };
 }

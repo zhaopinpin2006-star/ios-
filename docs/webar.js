@@ -1,5 +1,7 @@
+import { Group, Vector3 } from 'three';
 import { createBird, lightBird } from './character.js';
-import { createBurst } from './burst.js';
+import { createBurst } from './burst.js?v=3d2';
+import { createGround } from './ground.js?v=3d2';
 import { openPreview } from './preview.js';
 
 const intro = document.querySelector('#intro');
@@ -55,6 +57,7 @@ async function loadTarget(selectedPhoto) {
 function disposeSession(current) {
   if (!current) return;
   current.burst?.dispose();
+  current.ground?.dispose();
   current.bird?.dispose();
   current.ar?.dispose();
 }
@@ -71,7 +74,7 @@ function exitAR() {
 async function startAR() {
   setBusy(true);
   let stage = '检查摄像头';
-  const current = { began: null };
+  const current = { firstSeenAt: null, effectsAt: null };
   try {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       throw new Error('请使用 Safari 或支持摄像头的浏览器打开 HTTPS 链接。');
@@ -84,7 +87,27 @@ async function startAR() {
       loadTarget(selectedPhoto),
     ]);
     const bird = current.bird = await createBird();
-    const burst = current.burst = createBurst(selectedPhoto ? null : poster, target.ratio);
+    const ground = current.ground = createGround();
+    const base = selectedPhoto
+      ? new Vector3(0, 0, .036)
+      : new Vector3(.06, -.54, .036);
+    const burst = current.burst = createBurst(selectedPhoto ? null : poster, target.ratio, base);
+    ground.group.position.set(base.x, base.y, .003);
+
+    const stance = new Group();
+    stance.name = 'StandingMudgugu';
+    stance.position.copy(base);
+    // The flat target lies in XY. Its normal (+Z) is the sculpture's up direction.
+    stance.rotation.x = Math.PI / 2;
+    const heading = new Group();
+    heading.rotation.y = -1.08;
+    // Offset the centered sculpture so the stance origin is between its feet.
+    bird.group.position.set(-.11, bird.height / 2, -.03);
+    heading.add(bird.group);
+    stance.add(heading);
+    const standingHeight = selectedPhoto ? Math.min(.74, target.ratio * .86) : .74;
+    const standingScale = standingHeight / bird.height;
+    stance.scale.setScalar(standingScale);
 
     const ar = current.ar = new MindARThree({
       container, imageTargetData: target.data, maxTrack: 1,
@@ -94,19 +117,20 @@ async function startAR() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.45));
     lightBird(scene);
     const anchor = ar.addAnchor(0);
-    anchor.group.add(bird.group, burst.points);
-    const height = Math.min(.51, target.ratio * .54);
+    anchor.group.add(stance, ground.group, burst.points, burst.ambient);
     hint.textContent = selectedPhoto ? '请对准选择的识别图片…' : '正在寻找泥咕咕海报…';
     replay.disabled = true;
 
     anchor.onTargetFound = () => {
-      current.began = performance.now();
-      hint.textContent = '已识别 · 泥咕咕飞出来了';
+      if (current.firstSeenAt === null) {
+        current.firstSeenAt = current.effectsAt = performance.now();
+      }
+      hint.textContent = '已识别 · 移动手机绕看';
       replay.disabled = false;
     };
     anchor.onTargetLost = () => {
-      current.began = null;
-      hint.textContent = '请重新对准整只泥咕咕';
+      current.effectsAt = null;
+      hint.textContent = selectedPhoto ? '请重新对准识别图片' : '请重新对准泥咕咕海报';
       replay.disabled = true;
     };
 
@@ -114,21 +138,14 @@ async function startAR() {
     status.textContent = '正在' + stage + '…';
     await ar.start();
     renderer.setAnimationLoop(now => {
-      if (current.began !== null) {
-        const elapsed = Math.max(0, (now - current.began) / 1000);
-        const flight = Math.min(1, Math.max(0, (elapsed - .16) / 1.65));
-        const ease = 1 - (1 - flight) ** 3;
-        const scale = height / bird.height * (.12 + .88 * ease);
-        const hover = .022 * ease * Math.sin(elapsed * 4.8);
-        bird.group.position.set(-.04 * (1 - ease), -.21 * target.ratio + .29 * ease + hover,
-          .045 + scale * bird.depth * .55 + ease * .42);
-        bird.group.scale.setScalar(scale);
-        bird.group.rotation.set(-.1 * Math.sin(flight * Math.PI),
-          -.16 - ease * .57 + .16 * ease * Math.sin(elapsed * 1.45),
-          -.09 * (1 - ease) + .045 * ease * Math.sin(elapsed * 2.7));
-        bird.group.visible = elapsed >= .16;
-        bird.flap(elapsed, .42 + .48 * (1 - flight));
-        burst.animate(elapsed);
+      if (anchor.visible && current.firstSeenAt !== null) {
+        const elapsed = Math.max(0, (now - current.firstSeenAt) / 1000);
+        const entrance = Math.min(1, Math.max(0, (elapsed - .18) / .65));
+        stance.visible = elapsed >= .18;
+        stance.scale.setScalar(standingScale * (1 - .28 * (1 - entrance) ** 3));
+        const effectsElapsed = current.effectsAt === null ? Infinity : Math.max(0, (now - current.effectsAt) / 1000);
+        ground.animate(effectsElapsed);
+        burst.animate(effectsElapsed, elapsed);
       }
       renderer.render(scene, camera);
     });
@@ -184,7 +201,7 @@ document.querySelector('#close-preview').addEventListener('click', () => {
 });
 document.querySelector('#stop').addEventListener('click', exitAR);
 replay.addEventListener('click', () => {
-  if (session?.began != null) session.began = performance.now();
+  if (session && !replay.disabled) session.effectsAt = performance.now();
 });
 window.addEventListener('pagehide', () => {
   if (session) exitAR();
